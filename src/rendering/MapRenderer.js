@@ -98,7 +98,10 @@ export class MapRenderer {
 
   _renderPaths(paths, playerIdx, map) {
     const halfWidth = map.gridWidth;
-    const offset = playerIdx === 0 ? 1 : halfWidth + 2;
+    const pathMat = new THREE.MeshStandardMaterial({
+      color: map.pathColor,
+      roughness: 0.8,
+    });
 
     for (const path of paths) {
       const points = path.map(p => {
@@ -106,7 +109,7 @@ export class MapRenderer {
         return new THREE.Vector3(x, 0.02, p.y);
       });
 
-      // Path as a wide line (extruded shape)
+      // Path segments
       for (let i = 0; i < points.length - 1; i++) {
         const a = points[i];
         const b = points[i + 1];
@@ -115,10 +118,6 @@ export class MapRenderer {
         const len = Math.sqrt(dx * dx + dz * dz);
 
         const pathGeo = new THREE.BoxGeometry(len + 0.4, 0.05, 0.8);
-        const pathMat = new THREE.MeshStandardMaterial({
-          color: map.pathColor,
-          roughness: 0.8,
-        });
         const pathMesh = new THREE.Mesh(pathGeo, pathMat);
 
         const cx = (a.x + b.x) / 2;
@@ -127,6 +126,15 @@ export class MapRenderer {
         pathMesh.rotation.y = Math.atan2(dx, dz) - Math.PI / 2;
         pathMesh.receiveShadow = true;
         this.mapGroup.add(pathMesh);
+      }
+
+      // Fill corner gaps at each waypoint with a disc
+      for (const pt of points) {
+        const discGeo = new THREE.CylinderGeometry(0.45, 0.45, 0.05, 8);
+        const disc = new THREE.Mesh(discGeo, pathMat);
+        disc.position.set(pt.x, 0.025, pt.z);
+        disc.receiveShadow = true;
+        this.mapGroup.add(disc);
       }
     }
   }

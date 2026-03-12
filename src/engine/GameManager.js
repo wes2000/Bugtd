@@ -372,17 +372,43 @@ export class GameManager {
     return this.readyState[playerIdx];
   }
 
+  // Queue cards during build phase (just validates the card exists)
+  isValidCard(cardId) {
+    return this.cards.getHand(0).some(c => c.id === cardId);
+  }
+
+  // Deploy queued cards at combat start - called with array of card IDs
+  deployQueuedCards(cardIds) {
+    const paths = this.playerPaths[0];
+    let spawnDelay = 0;
+
+    for (const cardId of cardIds) {
+      const card = this.cards.playCard(0, cardId);
+      if (!card) continue;
+
+      for (let i = 0; i < card.spawnCount; i++) {
+        const delay = spawnDelay;
+        setTimeout(() => {
+          const pIdx = Math.floor(Math.random() * paths.length);
+          const path = paths[pIdx];
+          this.troops.spawnTroop(0, card.troopType, path, card.hpMultiplier, card.isGolden);
+        }, delay);
+        spawnDelay += 300;
+      }
+    }
+
+    return cardIds.length > 0;
+  }
+
   playCard(cardId, pathIndex) {
     if (this.phase !== PHASES.COMBAT) return false;
     const card = this.cards.playCard(0, cardId);
     if (!card) return false;
 
     const paths = this.playerPaths[0];
-    // If pathIndex is -1, auto-assign random lanes
     const useRandom = pathIndex < 0;
 
     for (let i = 0; i < card.spawnCount; i++) {
-      // Stagger spawns slightly
       setTimeout(() => {
         const pIdx = useRandom ? Math.floor(Math.random() * paths.length) : Math.min(pathIndex, paths.length - 1);
         const path = paths[pIdx];

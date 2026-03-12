@@ -41,6 +41,14 @@ game.onPhaseChange = (phase) => {
   }
   if (phase === PHASES.COMBAT) {
     SFX.fight();
+    // Deploy all queued cards automatically
+    const queued = ui.getQueuedCards();
+    if (queued.length > 0) {
+      game.deployQueuedCards(queued);
+      SFX.cardPlay();
+      ui.clearQueuedCards();
+      ui.updateCardHand(game.getPlayerHand(), true);
+    }
   }
 };
 
@@ -177,13 +185,8 @@ ui.onTowerSelect = (type) => {
 };
 
 ui.onCardSelect = (cardId) => {
-  // Auto-deploy card to random lanes immediately
-  const success = game.playCard(cardId, -1); // -1 = random lane
-  if (success) {
-    SFX.cardPlay();
-    ui.selectedCard = null;
-    ui.updateCardHand(game.getPlayerHand(), true);
-  }
+  // Just update the card hand visual to reflect toggle state
+  ui.updateCardHand(game.getPlayerHand(), true);
 };
 
 ui.onUpgrade = (towerId, branch) => {
@@ -287,8 +290,8 @@ canvas.addEventListener('contextmenu', (e) => {
   e.preventDefault();
   ui.deselectTower();
   ui.hideTowerInfo();
-  ui.selectedCard = null;
-  ui.hideSpawnSelector();
+  ui.clearQueuedCards();
+  ui.updateCardHand(game.getPlayerHand(), true);
   towerRenderer.removeRangeIndicator('preview');
   towerRenderer.rangeIndicators.forEach((_, id) => towerRenderer.removeRangeIndicator(id));
 });

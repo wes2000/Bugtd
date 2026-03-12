@@ -5,14 +5,13 @@ export class UIManager {
     this.overlay = overlay;
     this.selectedTowerType = null;
     this.selectedCard = null;
+    this.selectedCards = new Set(); // queued cards for combat
     this.selectedTower = null; // placed tower for info panel
-    this.showSpawnSelector = false;
 
     // Callbacks
     this.onStartGame = null;
     this.onTowerSelect = null;
     this.onCardSelect = null;
-    this.onSpawnSelect = null;
     this.onUpgrade = null;
     this.onSell = null;
     this.onTargeting = null;
@@ -49,7 +48,7 @@ export class UIManager {
         </div>
         <div class="how-section">
           <h3>Combat Phase</h3>
-          <p>Play bug cards from your hand to send troops through your opponent's defenses. Click a card, then choose a spawn point.</p>
+          <p>Select bug cards during the Build phase to queue them for attack. They auto-deploy to random lanes when combat starts!</p>
         </div>
         <div class="how-section">
           <h3>Towers</h3>
@@ -304,18 +303,15 @@ export class UIManager {
 
     // Build a signature of current card state to check if rebuild needed
     const cardSig = cards.map(c => `${c.id}:${c.rarity}`).join(',');
-    if (!forceRebuild && cardSig === this._lastCardIds) {
-      // Just update selection state without rebuilding
-      hand.querySelectorAll('.card').forEach(el => {
-        const id = parseInt(el.dataset.cardId);
-        el.classList.toggle('selected', id === this.selectedCard);
-      });
+    const queuedSig = [...this.selectedCards].sort().join(',');
+    if (!forceRebuild && cardSig === this._lastCardIds && queuedSig === this._lastQueuedSig) {
       return;
     }
     this._lastCardIds = cardSig;
+    this._lastQueuedSig = queuedSig;
 
     hand.innerHTML = cards.map(card => `
-      <div class="card ${card.rarity} ${card.carriedOver ? 'carried-over' : ''} ${this.selectedCard === card.id ? 'selected' : ''}"
+      <div class="card ${card.rarity} ${card.carriedOver ? 'carried-over' : ''} ${this.selectedCards.has(card.id) ? 'queued' : ''}"
            data-card-id="${card.id}">
         <span class="rarity-tag" style="background:${card.isGolden ? '#ffd700' : 'transparent'}">${card.isGolden ? 'GOLD' : ''}</span>
         <span class="bug-icon">${card.emoji}</span>
@@ -328,22 +324,32 @@ export class UIManager {
     hand.querySelectorAll('.card').forEach(el => {
       el.addEventListener('click', () => {
         const cardId = parseInt(el.dataset.cardId);
-        this.selectCard(cardId);
+        this.toggleCard(cardId);
       });
     });
   }
 
-  selectCard(cardId) {
-    // During combat, immediately deploy the card to random lanes
-    this.selectedCard = cardId;
+  toggleCard(cardId) {
+    // Toggle card in/out of queue
+    if (this.selectedCards.has(cardId)) {
+      this.selectedCards.delete(cardId);
+    } else {
+      this.selectedCards.add(cardId);
+    }
     this.selectedTowerType = null;
     this.deselectTower();
     if (this.onCardSelect) this.onCardSelect(cardId);
-    this.selectedCard = null;
-    // Update visual without full rebuild
-    document.querySelectorAll('.card').forEach(el => {
-      el.classList.toggle('selected', false);
-    });
+    // Force visual rebuild
+    this._lastQueuedSig = '';
+  }
+
+  getQueuedCards() {
+    return [...this.selectedCards];
+  }
+
+  clearQueuedCards() {
+    this.selectedCards.clear();
+    this._lastQueuedSig = '';
   }
 
   showSpawnSelector() {
@@ -454,6 +460,7 @@ export class UIManager {
   // Reset ready button for new round
   resetReady() {
     this._playerReady = false;
+    this.clearQueuedCards();
     const btn = document.getElementById('ready-btn');
     if (btn) {
       btn.textContent = 'READY';
