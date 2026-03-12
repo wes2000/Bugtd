@@ -37,10 +37,15 @@ game.onPhaseChange = (phase) => {
     syncTowerMeshes();
     ui.deselectTower();
     ui.hideTowerInfo();
+    ui.resetReady();
   }
   if (phase === PHASES.COMBAT) {
     SFX.fight();
   }
+};
+
+game.onReadyChange = () => {
+  ui.updateReadyStatus(game.isReady(0), game.isReady(1));
 };
 
 game.onRoundChange = (round) => {
@@ -151,6 +156,15 @@ ui.onStartGame = (name) => {
   ui.updateSpawnButtons(map.pathCount);
 };
 
+ui.onReady = (isReady) => {
+  if (isReady) {
+    game.playerReady(0);
+  } else {
+    game.playerUnready(0);
+  }
+  ui.updateReadyStatus(game.isReady(0), game.isReady(1));
+};
+
 ui.onTowerSelect = (type) => {
   if (previewMesh) {
     scene.remove(previewMesh);
@@ -172,7 +186,7 @@ ui.onSpawnSelect = (pathIdx) => {
     if (success) {
       SFX.cardPlay();
       ui.selectedCard = null;
-      ui.updateCardHand(game.getPlayerHand());
+      ui.updateCardHand(game.getPlayerHand(), true); // force rebuild after card played
     }
   }
 };
@@ -346,10 +360,8 @@ function gameLoop(time) {
     // Sync tower meshes (for AI builds)
     syncTowerMeshes();
 
-    // Update card hand during combat
-    if (game.getPhase() === PHASES.COMBAT) {
-      ui.updateCardHand(game.getPlayerHand());
-    }
+    // Update card hand (cached - only rebuilds when cards change)
+    ui.updateCardHand(game.getPlayerHand());
 
     // Camera smooth return after shake
     const map = game.getMap();

@@ -190,7 +190,19 @@ body {
 }
 
 .hud.active { display: block; }
-.hud > * { pointer-events: auto; }
+
+/* IMPORTANT: only specific interactive widgets get pointer events.
+   The HUD itself must stay pointer-events:none so canvas clicks pass through. */
+.hud .top-bar,
+.hud .tower-panel,
+.hud .gold-display,
+.hud .card-hand,
+.hud .spawn-selector,
+.hud .tower-info,
+.hud .emote-area,
+.hud .ready-btn-container {
+  pointer-events: auto;
+}
 
 /* Top Bar */
 .top-bar {
@@ -489,6 +501,56 @@ body {
   border: 1px solid rgba(255,255,255,0.2);
   border-radius: 6px;
   font-size: 12px;
+}
+
+/* Ready Button */
+.ready-btn-container {
+  position: absolute;
+  bottom: 130px;
+  right: 20px;
+  display: none;
+}
+
+.ready-btn-container.active { display: block; }
+
+.ready-btn {
+  padding: 14px 36px;
+  font-size: 20px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 3px;
+  border: 3px solid #6bcb77;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(107,203,119,0.3), rgba(76,175,80,0.3));
+  color: #6bcb77;
+  cursor: pointer;
+  transition: all 0.2s;
+  animation: readyPulse 2s ease-in-out infinite;
+}
+
+.ready-btn:hover {
+  background: linear-gradient(135deg, #6bcb77, #4caf50);
+  color: #fff;
+  transform: scale(1.05);
+}
+
+.ready-btn.is-ready {
+  background: linear-gradient(135deg, #6bcb77, #4caf50);
+  color: #fff;
+  border-color: #fff;
+  animation: none;
+}
+
+@keyframes readyPulse {
+  0%, 100% { box-shadow: 0 0 10px rgba(107,203,119,0.2); }
+  50% { box-shadow: 0 0 25px rgba(107,203,119,0.5); }
+}
+
+.ready-status {
+  margin-top: 8px;
+  font-size: 13px;
+  text-align: center;
+  color: #aaa;
 }
 
 /* Announcer */

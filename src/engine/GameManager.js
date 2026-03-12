@@ -7,23 +7,25 @@ import { TroopManager } from './TroopManager.js';
 import { CardManager } from './CardManager.js';
 import { CombatResolver } from './CombatResolver.js';
 
-const PHASE_TIMING = [
-  { build: 15, combat: 25 }, // round 1-3
-  { build: 15, combat: 25 },
-  { build: 15, combat: 25 },
-  { build: 20, combat: 35 }, // round 4-6
-  { build: 20, combat: 35 },
-  { build: 20, combat: 35 },
-  { build: 25, combat: 40 }, // round 7-9
-  { build: 25, combat: 40 },
-  { build: 25, combat: 40 },
-  { build: 30, combat: 50 }, // round 10-12
-  { build: 30, combat: 50 },
-  { build: 30, combat: 50 },
-  { build: 30, combat: 55 }, // round 13-15
-  { build: 30, combat: 55 },
-  { build: 30, combat: 55 },
-  { build: 30, combat: 60 }, // overtime
+const BUILD_PHASE_DURATION = 120; // 2 minutes, or until both sides ready
+
+const COMBAT_TIMING = [
+  25, // round 1-3
+  25,
+  25,
+  35, // round 4-6
+  35,
+  35,
+  40, // round 7-9
+  40,
+  40,
+  50, // round 10-12
+  50,
+  50,
+  55, // round 13-15
+  55,
+  55,
+  60, // overtime
 ];
 
 export const GAME_STATES = {
@@ -65,6 +67,9 @@ export class GameManager {
     this.aiCardTimer = 0;
     this.aiTowerTimer = 0;
 
+    // Ready state for build phase
+    this.readyState = [false, false]; // player 0, player 1 (AI)
+
     // Event callbacks
     this.onPhaseChange = null;
     this.onRoundChange = null;
@@ -72,6 +77,7 @@ export class GameManager {
     this.onGameOver = null;
     this.onAnnounce = null;
     this.onEvent = null;
+    this.onReadyChange = null;
 
     // Stats
     this.stats = {
@@ -142,9 +148,9 @@ export class GameManager {
 
     this.economy.setIncomeForRound(this.round);
     this.phase = PHASES.BUILD;
+    this.readyState = [false, false];
 
-    const timing = PHASE_TIMING[Math.min(this.round - 1, PHASE_TIMING.length - 1)];
-    this.phaseTimer = timing.build;
+    this.phaseTimer = BUILD_PHASE_DURATION;
 
     // Draw cards
     this.cards.drawCards(0, this.round);
@@ -164,8 +170,7 @@ export class GameManager {
 
   _startCombat() {
     this.phase = PHASES.COMBAT;
-    const timing = PHASE_TIMING[Math.min(this.round - 1, PHASE_TIMING.length - 1)];
-    this.phaseTimer = timing.combat;
+    this.phaseTimer = COMBAT_TIMING[Math.min(this.round - 1, COMBAT_TIMING.length - 1)];
     this.aiCardTimer = 0;
     this.combat.reset();
 
@@ -319,6 +324,25 @@ export class GameManager {
     return refund;
   }
 
+  // Ready up during build phase
+  playerReady(playerIdx) {
+    if (this.phase !== PHASES.BUILD) return;
+    this.readyState[playerIdx] = true;
+    // If both ready, skip remaining build time
+    if (this.readyState[0] && this.readyState[1]) {
+      this.phaseTimer = 0; // will trigger countdown on next update
+    }
+  }
+
+  playerUnready(playerIdx) {
+    if (this.phase !== PHASES.BUILD) return;
+    this.readyState[playerIdx] = false;
+  }
+
+  isReady(playerIdx) {
+    return this.readyState[playerIdx];
+  }
+
   playCard(cardId, pathIndex) {
     if (this.phase !== PHASES.COMBAT) return false;
     const card = this.cards.playCard(0, cardId);
@@ -364,7 +388,7 @@ export class GameManager {
     }
   }
 
-  // AI builds towers during build phase
+  // AI builds towers during build phase then readies up after a delay
   runAIBuildPhase() {
     const aiPlayer = 1;
     const buildable = this.buildableSquares[1];
@@ -400,6 +424,15 @@ export class GameManager {
         this.towers.upgradeTower(tower.id, branch);
       }
     }
+
+    // AI readies up after 3-8 seconds
+    const delay = 3000 + Math.random() * 5000;
+    setTimeout(() => {
+      if (this.phase === PHASES.BUILD) {
+        this.playerReady(1);
+        if (this.onReadyChange) this.onReadyChange();
+      }
+    }, delay);
   }
 
   getMap() { return this.map; }

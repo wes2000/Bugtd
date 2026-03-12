@@ -16,9 +16,12 @@ export class UIManager {
     this.onUpgrade = null;
     this.onSell = null;
     this.onTargeting = null;
+    this.onReady = null;
 
     this.currentScreen = 'menu';
     this.damageNumbers = [];
+    this._lastCardIds = ''; // cache to avoid unnecessary card hand rebuilds
+    this._playerReady = false;
 
     this._buildMainMenu();
   }
@@ -42,7 +45,7 @@ export class UIManager {
         </div>
         <div class="how-section">
           <h3>Build Phase</h3>
-          <p>Place monster towers on your grid (left side) to defend against incoming bugs. Click a tower type, then click a grid square to build.</p>
+          <p>Place monster towers on your grid (left side) to defend against incoming bugs. Click a tower type in the left panel, then click a grid square to build. Press READY when done!</p>
         </div>
         <div class="how-section">
           <h3>Combat Phase</h3>
@@ -84,7 +87,7 @@ export class UIManager {
           <div class="round-info">
             <div class="round-number" id="round-num">Round 1</div>
             <span class="phase-label build" id="phase-label">BUILD</span>
-            <div class="phase-timer" id="phase-timer">0:15</div>
+            <div class="phase-timer" id="phase-timer">2:00</div>
           </div>
           <div class="hp-bar-container">
             <span style="color:#ff6b6b;font-weight:700">ENEMY</span>
@@ -126,6 +129,11 @@ export class UIManager {
             ${TARGETING_MODES.map(m => `<option value="${m}">${m.charAt(0).toUpperCase() + m.slice(1)}</option>`).join('')}
           </select>
           <button class="action-btn btn-sell" id="ti-sell">Sell</button>
+        </div>
+
+        <div class="ready-btn-container" id="ready-container">
+          <button class="ready-btn" id="ready-btn">READY</button>
+          <div class="ready-status" id="ready-status">Place towers, then hit Ready!</div>
         </div>
 
         <div class="announcer" id="announcer"></div>
@@ -211,6 +219,20 @@ export class UIManager {
       }
     });
 
+    // Ready button
+    document.getElementById('ready-btn')?.addEventListener('click', () => {
+      this._playerReady = !this._playerReady;
+      const btn = document.getElementById('ready-btn');
+      if (this._playerReady) {
+        btn.textContent = 'WAITING...';
+        btn.classList.add('is-ready');
+      } else {
+        btn.textContent = 'READY';
+        btn.classList.remove('is-ready');
+      }
+      if (this.onReady) this.onReady(this._playerReady);
+    });
+
     // Emote
     document.getElementById('emote-trigger')?.addEventListener('click', () => {
       document.getElementById('emote-picker').classList.toggle('active');
@@ -269,10 +291,22 @@ export class UIManager {
     });
   }
 
-  // Card hand
-  updateCardHand(cards) {
+  // Card hand - only rebuild DOM when cards actually change
+  updateCardHand(cards, forceRebuild = false) {
     const hand = document.getElementById('card-hand');
     if (!hand) return;
+
+    // Build a signature of current card state to check if rebuild needed
+    const cardSig = cards.map(c => `${c.id}:${c.rarity}`).join(',');
+    if (!forceRebuild && cardSig === this._lastCardIds) {
+      // Just update selection state without rebuilding
+      hand.querySelectorAll('.card').forEach(el => {
+        const id = parseInt(el.dataset.cardId);
+        el.classList.toggle('selected', id === this.selectedCard);
+      });
+      return;
+    }
+    this._lastCardIds = cardSig;
 
     hand.innerHTML = cards.map(card => `
       <div class="card ${card.rarity} ${card.carriedOver ? 'carried-over' : ''} ${this.selectedCard === card.id ? 'selected' : ''}"
@@ -304,7 +338,7 @@ export class UIManager {
       this.showSpawnSelector();
       if (this.onCardSelect) this.onCardSelect(cardId);
     }
-    // Update visual
+    // Update visual without full rebuild
     document.querySelectorAll('.card').forEach(el => {
       el.classList.toggle('selected', parseInt(el.dataset.cardId) === this.selectedCard);
     });
@@ -367,6 +401,41 @@ export class UIManager {
     const goldInc = document.getElementById('gold-income');
     if (goldAmt) goldAmt.textContent = `${data.gold}`;
     if (goldInc) goldInc.textContent = `+${data.income}/s`;
+
+    // Show/hide ready button based on phase
+    const readyContainer = document.getElementById('ready-container');
+    if (readyContainer) {
+      if (data.phase === 'build') {
+        readyContainer.classList.add('active');
+      } else {
+        readyContainer.classList.remove('active');
+      }
+    }
+  }
+
+  // Update ready status text
+  updateReadyStatus(playerReady, enemyReady) {
+    const status = document.getElementById('ready-status');
+    if (!status) return;
+    if (playerReady && enemyReady) {
+      status.textContent = 'Both ready! Starting...';
+    } else if (playerReady) {
+      status.textContent = 'Waiting for enemy...';
+    } else if (enemyReady) {
+      status.textContent = 'Enemy is ready!';
+    } else {
+      status.textContent = 'Place towers, then hit Ready!';
+    }
+  }
+
+  // Reset ready button for new round
+  resetReady() {
+    this._playerReady = false;
+    const btn = document.getElementById('ready-btn');
+    if (btn) {
+      btn.textContent = 'READY';
+      btn.classList.remove('is-ready');
+    }
   }
 
   // Tower info panel
