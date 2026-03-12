@@ -428,16 +428,27 @@ body {
   transform: translateX(-50%);
   display: none;
   gap: 10px;
-  padding: 10px 16px;
-  background: rgba(0,0,0,0.8);
-  border-radius: 12px;
+  padding: 12px 20px;
+  background: rgba(0,0,0,0.85);
+  border-radius: 14px;
   border: 2px solid #ffd93d;
+  box-shadow: 0 0 20px rgba(255,217,61,0.3);
+  align-items: center;
 }
 
 .spawn-selector.active { display: flex; }
 
+.spawn-selector::before {
+  content: 'SEND TO:';
+  font-size: 12px;
+  font-weight: 900;
+  color: #ffd93d;
+  letter-spacing: 2px;
+  margin-right: 4px;
+}
+
 .spawn-btn {
-  padding: 10px 20px;
+  padding: 12px 24px;
   font-size: 16px;
   font-weight: 700;
   border: 2px solid #4d96ff;
@@ -445,9 +456,16 @@ body {
   background: rgba(77,150,255,0.2);
   color: #fff;
   cursor: pointer;
+  transition: all 0.15s;
+  text-transform: uppercase;
+  letter-spacing: 1px;
 }
 
-.spawn-btn:hover { background: rgba(77,150,255,0.5); }
+.spawn-btn:hover {
+  background: rgba(77,150,255,0.5);
+  transform: scale(1.05);
+  box-shadow: 0 0 12px rgba(77,150,255,0.4);
+}
 
 /* Tower Info Panel */
 .tower-info {
@@ -496,15 +514,39 @@ body {
 .btn-sell { background: #ff6b6b; color: #fff; }
 .btn-sell:hover { background: #e74c3c; }
 
-.targeting-select {
-  width: 100%;
-  padding: 6px;
-  margin-top: 6px;
-  background: rgba(255,255,255,0.1);
-  color: #fff;
-  border: 1px solid rgba(255,255,255,0.2);
+.targeting-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 8px;
+}
+
+.targeting-btn {
+  flex: 1 1 45%;
+  padding: 6px 4px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  border: 2px solid rgba(255,255,255,0.15);
   border-radius: 6px;
-  font-size: 12px;
+  background: rgba(255,255,255,0.05);
+  color: #aaa;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.targeting-btn:hover {
+  background: rgba(77,150,255,0.2);
+  border-color: rgba(77,150,255,0.5);
+  color: #fff;
+}
+
+.targeting-btn.active {
+  background: rgba(77,150,255,0.3);
+  border-color: #4d96ff;
+  color: #fff;
+  box-shadow: 0 0 8px rgba(77,150,255,0.3);
 }
 
 /* Ready Button */

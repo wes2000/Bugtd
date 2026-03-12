@@ -125,9 +125,9 @@ export class UIManager {
           <div class="stat-row"><span>Range</span><span class="stat-value" id="ti-range"></span></div>
           <div class="stat-row"><span>Kills</span><span class="stat-value" id="ti-kills"></span></div>
           <div id="ti-upgrade-section"></div>
-          <select class="targeting-select" id="ti-targeting">
-            ${TARGETING_MODES.map(m => `<option value="${m}">${m.charAt(0).toUpperCase() + m.slice(1)}</option>`).join('')}
-          </select>
+          <div class="targeting-buttons" id="ti-targeting">
+            ${TARGETING_MODES.map(m => `<button class="targeting-btn" data-mode="${m}">${m.charAt(0).toUpperCase() + m.slice(1)}</button>`).join('')}
+          </div>
           <button class="action-btn btn-sell" id="ti-sell">Sell</button>
         </div>
 
@@ -213,10 +213,16 @@ export class UIManager {
       }
     });
 
-    document.getElementById('ti-targeting')?.addEventListener('change', (e) => {
-      if (this.selectedTower && this.onTargeting) {
-        this.onTargeting(this.selectedTower.id, e.target.value);
-      }
+    document.querySelectorAll('.targeting-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const mode = btn.dataset.mode;
+        if (this.selectedTower && this.onTargeting) {
+          this.onTargeting(this.selectedTower.id, mode);
+        }
+        // Update visual
+        document.querySelectorAll('.targeting-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+      });
     });
 
     // Ready button
@@ -452,7 +458,10 @@ export class UIManager {
     document.getElementById('ti-speed').textContent = tower.attackSpeed.toFixed(1);
     document.getElementById('ti-range').textContent = tower.range.toFixed(1);
     document.getElementById('ti-kills').textContent = tower.kills;
-    document.getElementById('ti-targeting').value = tower.targeting;
+    // Highlight active targeting mode
+    document.querySelectorAll('.targeting-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.mode === tower.targeting);
+    });
 
     // Upgrade buttons
     const upgSection = document.getElementById('ti-upgrade-section');
