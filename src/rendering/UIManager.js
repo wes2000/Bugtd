@@ -351,7 +351,15 @@ export class UIManager {
   }
 
   showSpawnSelector() {
-    document.getElementById('spawn-selector')?.classList.add('active');
+    const el = document.getElementById('spawn-selector');
+    if (!el) return;
+    // Show phase-appropriate message
+    if (this._currentPhase === 'build' || this._currentPhase === 'roundEnd') {
+      el.dataset.hint = 'combat';
+    } else {
+      el.dataset.hint = '';
+    }
+    el.classList.add('active');
   }
 
   hideSpawnSelector() {
@@ -361,12 +369,23 @@ export class UIManager {
   updateSpawnButtons(pathCount) {
     const container = document.getElementById('spawn-selector');
     if (!container) return;
+    this._pathCount = pathCount;
+    this._rebuildSpawnButtons(container, pathCount);
+  }
+
+  _rebuildSpawnButtons(container, pathCount) {
     container.innerHTML = '';
+    // Hint for non-combat phase
+    const hint = document.createElement('div');
+    hint.className = 'spawn-hint';
+    hint.textContent = 'Play cards during Combat phase!';
+    container.appendChild(hint);
+
     for (let i = 0; i < pathCount; i++) {
       const btn = document.createElement('button');
       btn.className = 'spawn-btn';
       btn.dataset.spawn = i;
-      btn.textContent = `Path ${i + 1}`;
+      btn.textContent = pathCount === 1 ? 'Send Bugs!' : `Path ${i + 1}`;
       btn.addEventListener('click', () => {
         if (this.onSpawnSelect) this.onSpawnSelect(i);
         this.hideSpawnSelector();
@@ -389,6 +408,8 @@ export class UIManager {
 
     const roundNum = document.getElementById('round-num');
     if (roundNum) roundNum.textContent = `Round ${data.round}/15`;
+
+    this._currentPhase = data.phase;
 
     const phaseLabel = document.getElementById('phase-label');
     if (phaseLabel) {
