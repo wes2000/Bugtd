@@ -301,6 +301,7 @@ export class GameManager {
 
     this.economy.spendGold(0, def.cost);
     const tower = this.towers.placeTower(0, type, gridX, gridY);
+    this._setTowerWorldPos(tower);
     return tower;
   }
 
@@ -412,7 +413,8 @@ export class GameManager {
 
       const square = openSquares[Math.floor(Math.random() * openSquares.length)];
       this.economy.spendGold(aiPlayer, def.cost);
-      this.towers.placeTower(aiPlayer, type, square.x, square.y);
+      const t = this.towers.placeTower(aiPlayer, type, square.x, square.y);
+      this._setTowerWorldPos(t);
     }
 
     // AI upgrades random towers
@@ -438,6 +440,21 @@ export class GameManager {
     }, delay);
   }
 
+  _gridToWorld(gridX, gridY, playerIdx) {
+    const halfWidth = this.map.gridWidth;
+    const offset = playerIdx === 0 ? 1 : halfWidth + 2;
+    return {
+      x: gridX + offset + 0.5,
+      z: gridY + 0.5,
+    };
+  }
+
+  _setTowerWorldPos(tower) {
+    const pos = this._gridToWorld(tower.gridX, tower.gridY, tower.player);
+    tower.worldX = pos.x;
+    tower.worldZ = pos.z;
+  }
+
   _updateGoldTowers(dt) {
     if (!this._goldTickTimers) this._goldTickTimers = {};
     for (const tower of this.towers.towers) {
@@ -449,7 +466,7 @@ export class GameManager {
         this.economy.addGold(tower.player, tower.goldPerTick);
         if (this.onEvent) this.onEvent({
           type: 'gold',
-          x: tower.gridX, z: tower.gridY,
+          x: tower.worldX, z: tower.worldZ,
           amount: tower.goldPerTick,
           player: tower.player,
         });

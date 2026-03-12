@@ -37,19 +37,16 @@ export class CombatResolver {
 
     // Aura towers (Icy Aura) - apply slow to all enemies in range
     if (tower.isAura) {
-      const enemyPlayer = tower.player; // towers defend against troops sent by the OTHER player
-      // Troops targeting this player's base = troops owned by opponent
       const opponentIdx = 1 - tower.player;
       const troops = this.troopManager.getTroopsForPlayer(opponentIdx);
       for (const troop of troops) {
         if (troop.dead || troop.isFlying) continue;
-        const dx = troop.x - tower.gridX;
-        const dz = troop.z - tower.gridY;
+        const dx = troop.x - tower.worldX;
+        const dz = troop.z - tower.worldZ;
         const dist = Math.sqrt(dx * dx + dz * dz);
         if (dist <= tower.range) {
           troop.slowAmount = Math.max(troop.slowAmount, tower.slowAmount);
           troop.slowTimer = Math.max(troop.slowTimer, 0.5);
-          // Aura does light damage
           if (tower.damage > 0) {
             this.troopManager.applyDamage(troop, tower.damage * dt);
           }
@@ -90,9 +87,9 @@ export class CombatResolver {
       for (let i = 0; i < count; i++) {
         const spreadAngle = count > 1 ? (i - (count - 1) / 2) * 0.3 : 0;
         this.projectiles.push({
-          x: tower.gridX,
+          x: tower.worldX,
           y: 0.8,
-          z: tower.gridY,
+          z: tower.worldZ,
           targetId: target.id,
           targetX: target.x + Math.sin(spreadAngle) * 0.5,
           targetZ: target.z + Math.cos(spreadAngle) * 0.5,
@@ -113,7 +110,7 @@ export class CombatResolver {
       towerId: tower.id,
       towerType: tower.type,
       targetId: target.id,
-      x: tower.gridX, z: tower.gridY,
+      x: tower.worldX, z: tower.worldZ,
     });
   }
 
@@ -129,8 +126,8 @@ export class CombatResolver {
       if (troop.isFlying && !tower.canTargetAir) continue;
       if (troop.invulnTimer > 0) continue;
 
-      const dx = troop.x - tower.gridX;
-      const dz = troop.z - tower.gridY;
+      const dx = troop.x - tower.worldX;
+      const dz = troop.z - tower.worldZ;
       const dist = Math.sqrt(dx * dx + dz * dz);
 
       // Check for pixie dust range reduction

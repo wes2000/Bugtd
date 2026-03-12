@@ -41,6 +41,7 @@ export class ParticleSystem {
     // Projectile meshes
     this.projectileMeshes = new Map();
     this.projectileGeo = new THREE.SphereGeometry(0.08, 6, 6);
+    this._projIdCounter = 0;
   }
 
   emitBurst(x, y, z, color, count = 8) {
@@ -92,19 +93,22 @@ export class ParticleSystem {
   }
 
   updateProjectiles(projectiles) {
+    // Assign stable IDs to projectiles
+    for (const proj of projectiles) {
+      if (!proj._pid) proj._pid = `proj_${++this._projIdCounter}`;
+    }
+
     const activeIds = new Set();
 
-    for (let i = 0; i < projectiles.length; i++) {
-      const proj = projectiles[i];
-      const id = `proj_${i}`;
-      activeIds.add(id);
+    for (const proj of projectiles) {
+      activeIds.add(proj._pid);
 
-      let mesh = this.projectileMeshes.get(id);
+      let mesh = this.projectileMeshes.get(proj._pid);
       if (!mesh) {
         const mat = new THREE.MeshBasicMaterial({ color: proj.color });
         mesh = new THREE.Mesh(this.projectileGeo, mat);
         this.scene.add(mesh);
-        this.projectileMeshes.set(id, mesh);
+        this.projectileMeshes.set(proj._pid, mesh);
       }
 
       mesh.position.set(proj.x, proj.y || 0.5, proj.z);
