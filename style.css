@@ -32,7 +32,11 @@ body {
   pointer-events: none;
 }
 
-#ui-overlay > * {
+/* Only the main menu and similar top-level panels get pointer events.
+   The HUD manages its own pointer-events on specific children. */
+#ui-overlay > .main-menu,
+#ui-overlay > .how-to-play,
+#ui-overlay > .game-over {
   pointer-events: auto;
 }
 
