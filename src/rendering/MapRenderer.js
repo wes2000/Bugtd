@@ -140,11 +140,12 @@ export class MapRenderer {
         const wx = x + offset + 0.5;
         const wz = y + 0.5;
 
-        const gridGeo = new THREE.PlaneGeometry(0.9, 0.9);
+        // Cell fill
+        const gridGeo = new THREE.PlaneGeometry(0.92, 0.92);
         const gridMat = new THREE.MeshStandardMaterial({
           color: playerIdx === 0 ? 0x4caf50 : 0xe74c3c,
           transparent: true,
-          opacity: 0.08,
+          opacity: 0.15,
           roughness: 1,
         });
         const gridMesh = new THREE.Mesh(gridGeo, gridMat);
@@ -152,6 +153,18 @@ export class MapRenderer {
         gridMesh.position.set(wx, 0.01, wz);
         gridMesh.userData = { isGrid: true, player: playerIdx, gridX: x, gridY: y };
         this.mapGroup.add(gridMesh);
+
+        // Cell border (wireframe outline)
+        const borderGeo = new THREE.EdgesGeometry(new THREE.PlaneGeometry(0.95, 0.95));
+        const borderMat = new THREE.LineBasicMaterial({
+          color: playerIdx === 0 ? 0x66bb6a : 0xef5350,
+          transparent: true,
+          opacity: 0.25,
+        });
+        const border = new THREE.LineSegments(borderGeo, borderMat);
+        border.rotation.x = -Math.PI / 2;
+        border.position.set(wx, 0.015, wz);
+        this.mapGroup.add(border);
 
         this.gridHelpers.push({
           mesh: gridMesh,
@@ -173,9 +186,23 @@ export class MapRenderer {
       const dx = worldX - gh.worldX;
       const dz = worldZ - gh.worldZ;
       const dist = dx * dx + dz * dz;
-      if (dist < closestDist && dist < 0.5) {
+      // Accept clicks within 0.5 units of cell center (covers the whole cell)
+      if (dist < closestDist && dist < 0.5 * 0.5) {
         closestDist = dist;
         closest = gh;
+      }
+    }
+
+    // Fallback: if no exact match, find nearest cell within 1 unit
+    if (!closest) {
+      for (const gh of this.gridHelpers) {
+        const dx = worldX - gh.worldX;
+        const dz = worldZ - gh.worldZ;
+        const dist = dx * dx + dz * dz;
+        if (dist < closestDist && dist < 1.0) {
+          closestDist = dist;
+          closest = gh;
+        }
       }
     }
 

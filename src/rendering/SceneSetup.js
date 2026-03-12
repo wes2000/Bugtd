@@ -69,12 +69,14 @@ export class SceneSetup {
   }
 
   getWorldPosition(screenX, screenY) {
-    this.mouse.x = (screenX / window.innerWidth) * 2 - 1;
-    this.mouse.y = -(screenY / window.innerHeight) * 2 + 1;
+    // Use canvas bounding rect, not window size - handles non-fullscreen windows
+    const rect = this.canvas.getBoundingClientRect();
+    this.mouse.x = ((screenX - rect.left) / rect.width) * 2 - 1;
+    this.mouse.y = -((screenY - rect.top) / rect.height) * 2 + 1;
     this.raycaster.setFromCamera(this.mouse, this.camera);
     const intersection = new THREE.Vector3();
-    this.raycaster.ray.intersectPlane(this.groundPlane, intersection);
-    return intersection;
+    const result = this.raycaster.ray.intersectPlane(this.groundPlane, intersection);
+    return result ? intersection : null;
   }
 
   render() {
