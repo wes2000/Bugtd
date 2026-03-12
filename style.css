@@ -420,24 +420,10 @@ body {
   font-weight: 700;
 }
 
-/* Spawn Point Selector */
+/* Spawn Point Selector (hidden - cards auto-deploy to random lanes) */
 .spawn-selector {
-  position: absolute;
-  bottom: 130px;
-  left: 50%;
-  transform: translateX(-50%);
-  display: none;
-  gap: 10px;
-  padding: 12px 20px;
-  background: rgba(0,0,0,0.9);
-  border-radius: 14px;
-  border: 2px solid #ffd93d;
-  box-shadow: 0 0 25px rgba(255,217,61,0.4);
-  align-items: center;
-  z-index: 30;
+  display: none !important;
 }
-
-.spawn-selector.active { display: flex; }
 
 .spawn-hint {
   display: none;

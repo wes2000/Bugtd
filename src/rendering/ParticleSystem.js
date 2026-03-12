@@ -28,12 +28,13 @@ export class ParticleSystem {
     this.meshes = [];
     this.maxParticles = 200;
 
-    // Pre-create mesh pool
+    // Pre-create mesh pool (positioned far off-screen to avoid visual artifacts)
     const geo = new THREE.SphereGeometry(0.06, 4, 4);
     for (let i = 0; i < this.maxParticles; i++) {
       const mat = new THREE.MeshBasicMaterial({ color: 0xffffff });
       const mesh = new THREE.Mesh(geo, mat);
       mesh.visible = false;
+      mesh.position.set(0, -100, 0);
       this.scene.add(mesh);
       this.meshes.push(mesh);
     }
@@ -151,6 +152,7 @@ export class ParticleSystem {
         mesh.material.transparent = true;
       } else {
         mesh.visible = false;
+        mesh.position.set(0, -100, 0);
       }
     }
   }

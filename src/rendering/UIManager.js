@@ -334,19 +334,15 @@ export class UIManager {
   }
 
   selectCard(cardId) {
-    if (this.selectedCard === cardId) {
-      this.selectedCard = null;
-      this.hideSpawnSelector();
-    } else {
-      this.selectedCard = cardId;
-      this.selectedTowerType = null;
-      this.deselectTower();
-      this.showSpawnSelector();
-      if (this.onCardSelect) this.onCardSelect(cardId);
-    }
+    // During combat, immediately deploy the card to random lanes
+    this.selectedCard = cardId;
+    this.selectedTowerType = null;
+    this.deselectTower();
+    if (this.onCardSelect) this.onCardSelect(cardId);
+    this.selectedCard = null;
     // Update visual without full rebuild
     document.querySelectorAll('.card').forEach(el => {
-      el.classList.toggle('selected', parseInt(el.dataset.cardId) === this.selectedCard);
+      el.classList.toggle('selected', false);
     });
   }
 

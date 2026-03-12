@@ -128,15 +128,40 @@ export class GameManager {
   _setupPaths() {
     const map = this.map;
     const halfWidth = map.gridWidth;
+    const totalWidth = halfWidth * 2 + 2;
 
-    // Player 0 sends troops along paths on player 1's side
-    // Player 1 sends troops along paths on player 0's side (mirrored)
-    this.playerPaths[0] = map.paths.map(path =>
-      path.map(p => ({ x: p.x + halfWidth + 1, y: p.y }))
-    );
-    this.playerPaths[1] = map.paths.map(path =>
-      path.map(p => ({ x: halfWidth - p.x, y: p.y }))
-    );
+    // Troop paths must use the SAME world coordinates as the rendered paths
+    // Rendered left-side:  x = p.x + 1
+    // Rendered right-side: x = (halfWidth - p.x) + halfWidth + 2
+    // Rendered paths go from base-edge toward divider, so we reverse for troop direction
+
+    // Player 0 sends troops through player 1's territory (right side)
+    this.playerPaths[0] = map.paths.map(path => {
+      // Match right-side rendering coords
+      const worldPath = path.map(p => ({
+        x: (halfWidth - p.x) + halfWidth + 2,
+        y: p.y
+      }));
+      // Reverse: troops enter from divider, walk toward P2 base
+      worldPath.reverse();
+      // Start from player 0's base
+      worldPath.unshift({ x: 0.5, y: worldPath[0].y });
+      return worldPath;
+    });
+
+    // Player 1 sends troops through player 0's territory (left side)
+    this.playerPaths[1] = map.paths.map(path => {
+      // Match left-side rendering coords
+      const worldPath = path.map(p => ({
+        x: p.x + 1,
+        y: p.y
+      }));
+      // Reverse: troops enter from divider, walk toward P1 base
+      worldPath.reverse();
+      // Start from player 1's base
+      worldPath.unshift({ x: totalWidth - 0.5, y: worldPath[0].y });
+      return worldPath;
+    });
   }
 
   _startRound() {
@@ -353,11 +378,14 @@ export class GameManager {
     if (!card) return false;
 
     const paths = this.playerPaths[0];
-    const path = paths[Math.min(pathIndex, paths.length - 1)];
+    // If pathIndex is -1, auto-assign random lanes
+    const useRandom = pathIndex < 0;
 
     for (let i = 0; i < card.spawnCount; i++) {
       // Stagger spawns slightly
       setTimeout(() => {
+        const pIdx = useRandom ? Math.floor(Math.random() * paths.length) : Math.min(pathIndex, paths.length - 1);
+        const path = paths[pIdx];
         this.troops.spawnTroop(0, card.troopType, path, card.hpMultiplier, card.isGolden);
       }, i * 300);
     }

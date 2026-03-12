@@ -177,17 +177,12 @@ ui.onTowerSelect = (type) => {
 };
 
 ui.onCardSelect = (cardId) => {
-  // Show spawn selector
-};
-
-ui.onSpawnSelect = (pathIdx) => {
-  if (ui.selectedCard !== null) {
-    const success = game.playCard(ui.selectedCard, pathIdx);
-    if (success) {
-      SFX.cardPlay();
-      ui.selectedCard = null;
-      ui.updateCardHand(game.getPlayerHand(), true); // force rebuild after card played
-    }
+  // Auto-deploy card to random lanes immediately
+  const success = game.playCard(cardId, -1); // -1 = random lane
+  if (success) {
+    SFX.cardPlay();
+    ui.selectedCard = null;
+    ui.updateCardHand(game.getPlayerHand(), true);
   }
 };
 
