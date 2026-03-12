@@ -236,6 +236,9 @@ export class GameManager {
     // Update economy (passive gold trickle)
     this.economy.update(dt);
 
+    // Goldbug gold generation (runs during ALL phases, not just combat)
+    this._updateGoldTowers(dt);
+
     // During combat, update troops and combat
     if (this.phase === PHASES.COMBAT) {
       // Update troops
@@ -435,6 +438,25 @@ export class GameManager {
     }, delay);
   }
 
+  _updateGoldTowers(dt) {
+    if (!this._goldTickTimers) this._goldTickTimers = {};
+    for (const tower of this.towers.towers) {
+      if (tower.goldPerTick <= 0) continue;
+      if (!this._goldTickTimers[tower.id]) this._goldTickTimers[tower.id] = 0;
+      this._goldTickTimers[tower.id] += dt;
+      if (this._goldTickTimers[tower.id] >= 3.0) {
+        this._goldTickTimers[tower.id] -= 3.0;
+        this.economy.addGold(tower.player, tower.goldPerTick);
+        if (this.onEvent) this.onEvent({
+          type: 'gold',
+          x: tower.gridX, z: tower.gridY,
+          amount: tower.goldPerTick,
+          player: tower.player,
+        });
+      }
+    }
+  }
+
   getMap() { return this.map; }
   getMapKey() { return this.mapKey; }
   getPhase() { return this.phase; }
@@ -442,7 +464,17 @@ export class GameManager {
   getPhaseTimer() { return Math.max(0, Math.ceil(this.phaseTimer)); }
   getBaseHp(playerIdx) { return this.baseHp[playerIdx]; }
   getGold() { return this.economy.getGold(0); }
-  getIncome() { return this.economy.getIncome(0); }
+  getIncome() {
+    // Base income + goldbug income (goldPerTick every 3s = goldPerTick/3 per second)
+    const baseIncome = this.economy.getIncome(0);
+    let goldTowerIncome = 0;
+    for (const tower of this.towers.getPlayerTowers(0)) {
+      if (tower.goldPerTick > 0) {
+        goldTowerIncome += tower.goldPerTick / 3;
+      }
+    }
+    return +(baseIncome + goldTowerIncome).toFixed(1);
+  }
   getPlayerHand() { return this.cards.getHand(0); }
   getPlayerTowers() { return this.towers.getPlayerTowers(0); }
   getEnemyTowers() { return this.towers.getPlayerTowers(1); }

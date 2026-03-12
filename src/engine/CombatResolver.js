@@ -29,22 +29,8 @@ export class CombatResolver {
   }
 
   _updateTower(tower, dt, round) {
-    // Gold generation
-    if (tower.goldPerTick > 0) {
-      if (!this.goldTickTimers[tower.id]) this.goldTickTimers[tower.id] = 0;
-      this.goldTickTimers[tower.id] += dt;
-      if (this.goldTickTimers[tower.id] >= 3.0) {
-        this.goldTickTimers[tower.id] -= 3.0;
-        this.economyManager.addGold(tower.player, tower.goldPerTick);
-        this.events.push({
-          type: 'gold',
-          x: tower.gridX, z: tower.gridY,
-          amount: tower.goldPerTick,
-          player: tower.player
-        });
-      }
-      return; // Gold towers don't attack
-    }
+    // Gold generation is handled by GameManager._updateGoldTowers (runs all phases)
+    if (tower.goldPerTick > 0) return;
 
     // Buff towers don't attack either
     if (tower.isBuffTower) return;

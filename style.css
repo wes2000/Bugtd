@@ -508,6 +508,17 @@ body {
   cursor: pointer;
 }
 
+.upgrade-option {
+  margin-top: 6px;
+}
+
+.upgrade-desc {
+  font-size: 11px;
+  color: #aaa;
+  line-height: 1.3;
+  padding: 3px 4px 0;
+}
+
 .btn-upgrade { background: #4d96ff; color: #fff; }
 .btn-upgrade:hover { background: #3b82f6; }
 .btn-upgrade.disabled { opacity: 0.4; cursor: not-allowed; }

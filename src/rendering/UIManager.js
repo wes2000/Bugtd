@@ -467,9 +467,12 @@ export class UIManager {
     const upgSection = document.getElementById('ti-upgrade-section');
     if (tower.level === 1) {
       upgSection.innerHTML = Object.entries(def.upgrades).map(([branch, upg]) => `
-        <button class="action-btn btn-upgrade" data-branch="${branch}">
-          ${upg.name} (${upg.cost}g)
-        </button>
+        <div class="upgrade-option" data-branch="${branch}">
+          <button class="action-btn btn-upgrade" data-branch="${branch}">
+            ${upg.name} (${upg.cost}g)
+          </button>
+          <div class="upgrade-desc">${upg.description}</div>
+        </div>
       `).join('');
 
       upgSection.querySelectorAll('.btn-upgrade').forEach(btn => {
