@@ -109,7 +109,7 @@ export class MapRenderer {
         return new THREE.Vector3(x, 0.02, p.y);
       });
 
-      // Path segments
+      // Path segments (wider to cover corner gaps, raised to avoid z-fighting)
       for (let i = 0; i < points.length - 1; i++) {
         const a = points[i];
         const b = points[i + 1];
@@ -117,24 +117,15 @@ export class MapRenderer {
         const dz = b.z - a.z;
         const len = Math.sqrt(dx * dx + dz * dz);
 
-        const pathGeo = new THREE.BoxGeometry(len + 0.4, 0.05, 0.8);
+        const pathGeo = new THREE.BoxGeometry(len + 0.6, 0.05, 0.9);
         const pathMesh = new THREE.Mesh(pathGeo, pathMat);
 
         const cx = (a.x + b.x) / 2;
         const cz = (a.z + b.z) / 2;
-        pathMesh.position.set(cx, 0.025, cz);
+        pathMesh.position.set(cx, 0.04, cz);
         pathMesh.rotation.y = Math.atan2(dx, dz) - Math.PI / 2;
         pathMesh.receiveShadow = true;
         this.mapGroup.add(pathMesh);
-      }
-
-      // Fill corner gaps at each waypoint with a disc
-      for (const pt of points) {
-        const discGeo = new THREE.CylinderGeometry(0.45, 0.45, 0.05, 8);
-        const disc = new THREE.Mesh(discGeo, pathMat);
-        disc.position.set(pt.x, 0.025, pt.z);
-        disc.receiveShadow = true;
-        this.mapGroup.add(disc);
       }
     }
   }

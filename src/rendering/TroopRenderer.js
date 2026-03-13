@@ -26,15 +26,16 @@ export class TroopRenderer {
       mesh.position.y = troop.isFlying ? 1.2 : 0.15 + Math.sin(this.time * 8 + troop.id) * 0.05;
       mesh.position.z = troop.z;
 
-      // Movement direction
-      if (troop.pathIndex < troop.path.length - 1) {
-        const next = troop.path[Math.min(troop.pathIndex + 1, troop.path.length - 1)];
-        const dx = next.x - troop.x;
-        const dz = next.y - troop.z;
-        if (dx !== 0 || dz !== 0) {
+      // Movement direction (velocity-based for multiplayer compatibility)
+      if (mesh.userData.lastX !== undefined) {
+        const dx = troop.x - mesh.userData.lastX;
+        const dz = troop.z - mesh.userData.lastZ;
+        if (Math.abs(dx) > 0.001 || Math.abs(dz) > 0.001) {
           mesh.rotation.y = Math.atan2(dx, dz);
         }
       }
+      mesh.userData.lastX = troop.x;
+      mesh.userData.lastZ = troop.z;
 
       // Scale animation
       const walkBob = 1 + Math.sin(this.time * 10 + troop.id * 2) * 0.08;

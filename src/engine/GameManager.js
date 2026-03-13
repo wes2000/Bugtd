@@ -67,6 +67,10 @@ export class GameManager {
     this.aiCardTimer = 0;
     this.aiTowerTimer = 0;
 
+    // Multiplayer
+    this.isMultiplayer = false;
+    this.isNetworkClient = false; // true if this is the joining player (receives state)
+
     // Ready state for build phase
     this.readyState = [false, false]; // player 0, player 1 (AI)
 
@@ -141,7 +145,8 @@ export class GameManager {
         y: p.y
       }));
       enemySide.reverse(); // divider → P2 base
-      return [...ownSide, ...enemySide];
+      // Slice off last ownSide point (exit waypoint overshoots divider, causes backtracking)
+      return [...ownSide.slice(0, -1), ...enemySide];
     });
 
     // Player 1: follow right-side path (own, base→divider) then left-side path reversed (enemy, divider→base)
@@ -152,7 +157,7 @@ export class GameManager {
       }));
       const enemySide = path.map(p => ({ x: p.x + 1, y: p.y }));
       enemySide.reverse(); // divider → P1 base
-      return [...ownSide, ...enemySide];
+      return [...ownSide.slice(0, -1), ...enemySide];
     });
   }
 
@@ -307,8 +312,8 @@ export class GameManager {
         if (this.onEvent) this.onEvent(evt);
       }
 
-      // AI plays cards automatically
-      this._updateAI(dt);
+      // AI plays cards automatically (disabled in multiplayer)
+      if (!this.isMultiplayer) this._updateAI(dt);
     }
   }
 
@@ -528,6 +533,169 @@ export class GameManager {
     }
   }
 
+  // Start game with a specific map (used by multiplayer client)
+  startGameWithMap(mapKey) {
+    this.mapKey = mapKey;
+    this.map = MAPS[mapKey];
+
+    this.economy.reset();
+    this.towers.reset();
+    this.troops.reset();
+    this.cards.reset();
+    this.combat.reset();
+
+    this.baseHp = [100, 100];
+    this.totalBaseDamage = [0, 0];
+    this.round = 0;
+    this.state = GAME_STATES.PLAYING;
+
+    const buildable = calculateBuildableSquares(this.map);
+    this.buildableSquares[0] = buildable;
+    this.buildableSquares[1] = buildable.map(s => ({
+      x: this.map.gridWidth - 1 - s.x,
+      y: s.y
+    }));
+
+    this._setupPaths();
+    this._startRound();
+  }
+
+  // Player-parameterized tower placement (for multiplayer)
+  placeTowerForPlayer(playerIdx, type, gridX, gridY) {
+    if (this.phase !== PHASES.BUILD) return null;
+    const def = TOWER_TYPES[type];
+    if (!def) return null;
+    if (!this.economy.canAfford(playerIdx, def.cost)) return null;
+
+    const isBuildable = this.buildableSquares[playerIdx].some(s => s.x === gridX && s.y === gridY);
+    if (!isBuildable) return null;
+    if (this.towers.isCellOccupied(playerIdx, gridX, gridY)) return null;
+
+    this.economy.spendGold(playerIdx, def.cost);
+    const tower = this.towers.placeTower(playerIdx, type, gridX, gridY);
+    this._setTowerWorldPos(tower);
+    return tower;
+  }
+
+  upgradeTowerForPlayer(playerIdx, towerId, branch) {
+    if (this.phase !== PHASES.BUILD) return null;
+    const tower = this.towers.getTower(towerId);
+    if (!tower || tower.player !== playerIdx || tower.level >= 2) return null;
+
+    const def = TOWER_TYPES[tower.type];
+    const upg = def.upgrades[branch];
+    if (!upg || !this.economy.canAfford(playerIdx, upg.cost)) return null;
+
+    this.economy.spendGold(playerIdx, upg.cost);
+    return this.towers.upgradeTower(towerId, branch);
+  }
+
+  sellTowerForPlayer(playerIdx, towerId) {
+    const tower = this.towers.getTower(towerId);
+    if (!tower || tower.player !== playerIdx) return 0;
+    if (this.phase !== PHASES.BUILD) return 0;
+
+    const refund = this.towers.sellTower(towerId);
+    this.economy.addGold(playerIdx, refund);
+    return refund;
+  }
+
+  deployQueuedCardsForPlayer(playerIdx, cardIds) {
+    const paths = this.playerPaths[playerIdx];
+    let spawnDelay = 0;
+
+    for (const cardId of cardIds) {
+      const card = this.cards.playCard(playerIdx, cardId);
+      if (!card) continue;
+
+      for (let i = 0; i < card.spawnCount; i++) {
+        const delay = spawnDelay;
+        setTimeout(() => {
+          const pIdx = Math.floor(Math.random() * paths.length);
+          const path = paths[pIdx];
+          this.troops.spawnTroop(playerIdx, card.troopType, path, card.hpMultiplier, card.isGolden);
+        }, delay);
+        spawnDelay += 300;
+      }
+    }
+    return cardIds.length > 0;
+  }
+
+  // State serialization for network sync
+  getSerializedState() {
+    return {
+      baseHp: [...this.baseHp],
+      phase: this.phase,
+      round: this.round,
+      phaseTimer: this.phaseTimer,
+      gold: [this.economy.getGold(0), this.economy.getGold(1)],
+      income: [this.getIncomeForPlayer(0), this.getIncomeForPlayer(1)],
+      readyState: [...this.readyState],
+      troops: this.troops.troops.map(t => ({
+        id: t.id, type: t.type, owner: t.owner,
+        x: t.x, z: t.z, hp: t.hp, maxHp: t.maxHp,
+        speed: t.speed, baseSpeed: t.baseSpeed,
+        baseDamage: t.baseDamage,
+        isFlying: t.isFlying, isGolden: t.isGolden,
+        shieldHp: t.shieldHp, stunTimer: t.stunTimer,
+        invulnTimer: t.invulnTimer, fighting: t.fighting,
+        slowAmount: t.slowAmount, slowTimer: t.slowTimer,
+        weakenAmount: t.weakenAmount, weakenTimer: t.weakenTimer,
+        color: t.color, scale: t.scale,
+        pathIndex: t.pathIndex, pathProgress: t.pathProgress,
+        reachedEnd: t.reachedEnd, dead: t.dead,
+      })),
+      towers: this.towers.towers.map(t => ({
+        id: t.id, type: t.type, player: t.player,
+        gridX: t.gridX, gridY: t.gridY, level: t.level,
+        branch: t.branch, damage: t.damage, range: t.range,
+        attackSpeed: t.attackSpeed, kills: t.kills,
+        targeting: t.targeting, totalInvested: t.totalInvested,
+        worldX: t.worldX, worldZ: t.worldZ,
+        goldPerTick: t.goldPerTick,
+      })),
+      hands: [this.cards.getHand(0), this.cards.getHand(1)],
+    };
+  }
+
+  // Apply state from network (client-side)
+  applyNetworkState(state) {
+    this.state = GAME_STATES.PLAYING;
+    this.baseHp = state.baseHp;
+    this.phase = state.phase;
+    this.round = state.round;
+    this.phaseTimer = state.phaseTimer;
+    this.economy.gold = [state.gold[0], state.gold[1]];
+    this.readyState = state.readyState;
+
+    // Sync troops (shallow copy is fine - these are plain data objects)
+    this.troops.troops = state.troops;
+
+    // Sync towers
+    this.towers.towers = state.towers;
+
+    // Sync hands
+    this.cards.hands = state.hands;
+  }
+
+  getGoldForPlayer(playerIdx) {
+    return this.economy.getGold(playerIdx);
+  }
+
+  getIncomeForPlayer(playerIdx) {
+    const baseIncome = this.economy.getIncome(playerIdx);
+    let goldTowerIncome = 0;
+    for (const tower of this.towers.getPlayerTowers(playerIdx)) {
+      if (tower.goldPerTick > 0) {
+        goldTowerIncome += tower.goldPerTick / 3;
+      }
+    }
+    return +(baseIncome + goldTowerIncome).toFixed(1);
+  }
+
+  getHandForPlayer(playerIdx) { return this.cards.getHand(playerIdx); }
+  getBuildableSquaresForPlayer(playerIdx) { return this.buildableSquares[playerIdx]; }
+
   getMap() { return this.map; }
   getMapKey() { return this.mapKey; }
   getPhase() { return this.phase; }
@@ -535,17 +703,7 @@ export class GameManager {
   getPhaseTimer() { return Math.max(0, Math.ceil(this.phaseTimer)); }
   getBaseHp(playerIdx) { return this.baseHp[playerIdx]; }
   getGold() { return this.economy.getGold(0); }
-  getIncome() {
-    // Base income + goldbug income (goldPerTick every 3s = goldPerTick/3 per second)
-    const baseIncome = this.economy.getIncome(0);
-    let goldTowerIncome = 0;
-    for (const tower of this.towers.getPlayerTowers(0)) {
-      if (tower.goldPerTick > 0) {
-        goldTowerIncome += tower.goldPerTick / 3;
-      }
-    }
-    return +(baseIncome + goldTowerIncome).toFixed(1);
-  }
+  getIncome() { return this.getIncomeForPlayer(0); }
   getPlayerHand() { return this.cards.getHand(0); }
   getPlayerTowers() { return this.towers.getPlayerTowers(0); }
   getEnemyTowers() { return this.towers.getPlayerTowers(1); }

@@ -17,6 +17,9 @@ export class UIManager {
     this.onTargeting = null;
     this.onReady = null;
     this.onSettingsChange = null;
+    this.onHostGame = null;
+    this.onJoinGame = null;
+    this.onCancelLobby = null;
 
     this.currentScreen = 'menu';
     this.damageNumbers = [];
@@ -34,8 +37,28 @@ export class UIManager {
         <input type="text" class="nickname-input" id="nickname" placeholder="Enter your name..."
                value="${localStorage.getItem('bugsiege_name') || ''}" maxlength="16">
         <button class="menu-btn btn-play" id="btn-play">PLAY vs AI</button>
+        <div class="mp-buttons">
+          <button class="menu-btn btn-host" id="btn-host">HOST GAME</button>
+          <button class="menu-btn btn-join" id="btn-join">JOIN GAME</button>
+        </div>
         <button class="menu-btn btn-how" id="btn-how">HOW TO PLAY</button>
         <button class="menu-btn btn-settings" id="btn-settings">SETTINGS</button>
+      </div>
+      <div class="lobby-screen" id="lobby-host" style="display:none">
+        <h2>HOSTING GAME</h2>
+        <div class="lobby-code-label">Your Join Code:</div>
+        <div class="lobby-code" id="lobby-code">------</div>
+        <div class="lobby-url" id="lobby-url"></div>
+        <button class="lobby-copy-btn" id="lobby-copy">Copy Link</button>
+        <div class="lobby-status" id="lobby-host-status">Waiting for opponent...</div>
+        <button class="menu-btn btn-how" id="lobby-cancel-host">CANCEL</button>
+      </div>
+      <div class="lobby-screen" id="lobby-join" style="display:none">
+        <h2>JOIN GAME</h2>
+        <input type="text" class="lobby-input" id="join-code-input" placeholder="Enter join code..." maxlength="6">
+        <button class="menu-btn btn-play" id="btn-do-join">JOIN</button>
+        <div class="lobby-status" id="lobby-join-status"></div>
+        <button class="menu-btn btn-how" id="lobby-cancel-join">BACK</button>
       </div>
       <div class="settings-panel" id="settings-panel" style="display:none">
         <button class="close-btn" id="close-settings">&times;</button>
@@ -222,6 +245,55 @@ export class UIManager {
       const isOn = btn.classList.toggle('active');
       btn.textContent = isOn ? 'ON' : 'OFF';
       if (this.onSettingsChange) this.onSettingsChange('music', isOn);
+    });
+
+    // Multiplayer
+    document.getElementById('btn-host')?.addEventListener('click', () => {
+      const name = document.getElementById('nickname').value.trim() || 'Player';
+      localStorage.setItem('bugsiege_name', name);
+      if (this.onHostGame) this.onHostGame(name);
+    });
+
+    document.getElementById('btn-join')?.addEventListener('click', () => {
+      document.getElementById('main-menu').style.display = 'none';
+      document.getElementById('lobby-join').style.display = 'flex';
+    });
+
+    document.getElementById('btn-do-join')?.addEventListener('click', () => {
+      const code = document.getElementById('join-code-input').value.trim();
+      if (code.length < 4) {
+        document.getElementById('lobby-join-status').textContent = 'Enter a valid code';
+        return;
+      }
+      const name = localStorage.getItem('bugsiege_name') || 'Player';
+      document.getElementById('lobby-join-status').textContent = 'Connecting...';
+      if (this.onJoinGame) this.onJoinGame(name, code);
+    });
+
+    document.getElementById('join-code-input')?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') document.getElementById('btn-do-join')?.click();
+    });
+
+    document.getElementById('lobby-cancel-host')?.addEventListener('click', () => {
+      if (this.onCancelLobby) this.onCancelLobby();
+      this.hideLobby();
+      this.showMainMenu();
+    });
+
+    document.getElementById('lobby-cancel-join')?.addEventListener('click', () => {
+      if (this.onCancelLobby) this.onCancelLobby();
+      this.hideLobby();
+      this.showMainMenu();
+    });
+
+    document.getElementById('lobby-copy')?.addEventListener('click', () => {
+      const url = document.getElementById('lobby-url').textContent;
+      navigator.clipboard.writeText(url).then(() => {
+        document.getElementById('lobby-copy').textContent = 'Copied!';
+        setTimeout(() => {
+          document.getElementById('lobby-copy').textContent = 'Copy Link';
+        }, 2000);
+      });
     });
 
     // Tower buttons
@@ -626,6 +698,32 @@ export class UIManager {
       musicBtn.textContent = musicEnabled ? 'ON' : 'OFF';
       musicBtn.classList.toggle('active', musicEnabled);
     }
+  }
+
+  // Multiplayer lobby
+  showHostLobby(code, joinUrl) {
+    document.getElementById('main-menu').style.display = 'none';
+    document.getElementById('lobby-host').style.display = 'flex';
+    document.getElementById('lobby-code').textContent = code;
+    document.getElementById('lobby-url').textContent = joinUrl;
+  }
+
+  showJoinLobby() {
+    document.getElementById('main-menu').style.display = 'none';
+    document.getElementById('lobby-join').style.display = 'flex';
+  }
+
+  updateLobbyStatus(screen, text) {
+    if (screen === 'host') {
+      document.getElementById('lobby-host-status').textContent = text;
+    } else {
+      document.getElementById('lobby-join-status').textContent = text;
+    }
+  }
+
+  hideLobby() {
+    document.getElementById('lobby-host').style.display = 'none';
+    document.getElementById('lobby-join').style.display = 'none';
   }
 
   // Screen management
