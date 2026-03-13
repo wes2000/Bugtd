@@ -69,7 +69,10 @@ export class TroopManager {
     return troop;
   }
 
-  update(dt, onReachBase, onDeath) {
+  update(dt, onReachBase, onDeath, onBugFight) {
+    // Bug-vs-bug combat: find opposing troops that are close together
+    this._resolveBugFights(dt, onDeath, onBugFight);
+
     for (const troop of this.troops) {
       if (troop.dead || troop.reachedEnd) continue;
 
@@ -82,6 +85,9 @@ export class TroopManager {
       if (troop.invulnTimer > 0) {
         troop.invulnTimer -= dt;
       }
+
+      // Fighting troops don't move
+      if (troop.fighting) continue;
 
       // Calculate effective speed
       let speed = troop.baseSpeed;
@@ -119,6 +125,44 @@ export class TroopManager {
 
     // Clean up dead/reached troops
     this.troops = this.troops.filter(t => !t.dead && !t.reachedEnd);
+  }
+
+  _resolveBugFights(dt, onDeath, onBugFight) {
+    const FIGHT_RANGE = 0.6;
+    // Reset fighting state
+    for (const troop of this.troops) {
+      if (!troop.dead && !troop.reachedEnd) troop.fighting = false;
+    }
+
+    const p0 = this.troops.filter(t => t.owner === 0 && !t.dead && !t.reachedEnd);
+    const p1 = this.troops.filter(t => t.owner === 1 && !t.dead && !t.reachedEnd);
+
+    for (const a of p0) {
+      for (const b of p1) {
+        if (a.dead || b.dead) continue;
+        const dx = a.x - b.x;
+        const dz = a.z - b.z;
+        const dist = Math.sqrt(dx * dx + dz * dz);
+        if (dist < FIGHT_RANGE) {
+          a.fighting = true;
+          b.fighting = true;
+          // Both deal damage to each other
+          const aDmg = a.baseDamage * dt * 2;
+          const bDmg = b.baseDamage * dt * 2;
+          b.hp -= aDmg;
+          a.hp -= bDmg;
+          if (onBugFight) onBugFight(a, b);
+          if (b.hp <= 0) {
+            b.dead = true;
+            if (onDeath) onDeath(b);
+          }
+          if (a.hp <= 0) {
+            a.dead = true;
+            if (onDeath) onDeath(a);
+          }
+        }
+      }
+    }
   }
 
   _moveAlongPath(troop, dist) {

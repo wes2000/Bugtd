@@ -16,6 +16,7 @@ export class UIManager {
     this.onSell = null;
     this.onTargeting = null;
     this.onReady = null;
+    this.onSettingsChange = null;
 
     this.currentScreen = 'menu';
     this.damageNumbers = [];
@@ -34,6 +35,19 @@ export class UIManager {
                value="${localStorage.getItem('bugsiege_name') || ''}" maxlength="16">
         <button class="menu-btn btn-play" id="btn-play">PLAY vs AI</button>
         <button class="menu-btn btn-how" id="btn-how">HOW TO PLAY</button>
+        <button class="menu-btn btn-settings" id="btn-settings">SETTINGS</button>
+      </div>
+      <div class="settings-panel" id="settings-panel" style="display:none">
+        <button class="close-btn" id="close-settings">&times;</button>
+        <h2>SETTINGS</h2>
+        <div class="settings-row">
+          <span class="settings-label">Sound Effects</span>
+          <button class="settings-toggle active" id="toggle-sfx">ON</button>
+        </div>
+        <div class="settings-row">
+          <span class="settings-label">Music</span>
+          <button class="settings-toggle active" id="toggle-music">ON</button>
+        </div>
       </div>
       <div class="how-to-play" id="how-to-play" style="display:none">
         <button class="close-btn" id="close-how">&times;</button>
@@ -137,6 +151,10 @@ export class UIManager {
 
         <div class="announcer" id="announcer"></div>
 
+        <div class="settings-gear" id="settings-gear">
+          <button class="gear-btn" id="btn-gear">⚙</button>
+        </div>
+
         <div class="emote-area">
           <button class="emote-btn-trigger" id="emote-trigger">😊</button>
           <div class="emote-picker" id="emote-picker">
@@ -177,6 +195,33 @@ export class UIManager {
 
     document.getElementById('close-how')?.addEventListener('click', () => {
       document.getElementById('how-to-play').style.display = 'none';
+    });
+
+    // Settings
+    document.getElementById('btn-settings')?.addEventListener('click', () => {
+      document.getElementById('settings-panel').style.display = 'block';
+    });
+
+    document.getElementById('btn-gear')?.addEventListener('click', () => {
+      document.getElementById('settings-panel').style.display = 'block';
+    });
+
+    document.getElementById('close-settings')?.addEventListener('click', () => {
+      document.getElementById('settings-panel').style.display = 'none';
+    });
+
+    document.getElementById('toggle-sfx')?.addEventListener('click', () => {
+      const btn = document.getElementById('toggle-sfx');
+      const isOn = btn.classList.toggle('active');
+      btn.textContent = isOn ? 'ON' : 'OFF';
+      if (this.onSettingsChange) this.onSettingsChange('sfx', isOn);
+    });
+
+    document.getElementById('toggle-music')?.addEventListener('click', () => {
+      const btn = document.getElementById('toggle-music');
+      const isOn = btn.classList.toggle('active');
+      btn.textContent = isOn ? 'ON' : 'OFF';
+      if (this.onSettingsChange) this.onSettingsChange('music', isOn);
     });
 
     // Tower buttons
@@ -567,6 +612,20 @@ export class UIManager {
 
   hideTooltip() {
     document.getElementById('tooltip')?.classList.remove('active');
+  }
+
+  // Sync settings toggle buttons with current audio state
+  syncSettings(sfxEnabled, musicEnabled) {
+    const sfxBtn = document.getElementById('toggle-sfx');
+    const musicBtn = document.getElementById('toggle-music');
+    if (sfxBtn) {
+      sfxBtn.textContent = sfxEnabled ? 'ON' : 'OFF';
+      sfxBtn.classList.toggle('active', sfxEnabled);
+    }
+    if (musicBtn) {
+      musicBtn.textContent = musicEnabled ? 'ON' : 'OFF';
+      musicBtn.classList.toggle('active', musicEnabled);
+    }
   }
 
   // Screen management

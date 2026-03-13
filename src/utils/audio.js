@@ -1,6 +1,30 @@
 // Procedural audio using Web Audio API
 let audioCtx = null;
 
+// Audio settings
+export const audioSettings = {
+  sfxEnabled: true,
+  musicEnabled: true,
+};
+
+export function setSfxEnabled(enabled) {
+  audioSettings.sfxEnabled = enabled;
+  localStorage.setItem('bugsiege_sfx', enabled ? '1' : '0');
+}
+
+export function setMusicEnabled(enabled) {
+  audioSettings.musicEnabled = enabled;
+  localStorage.setItem('bugsiege_music', enabled ? '1' : '0');
+  if (!enabled) stopAmbient();
+  else if (audioCtx) startAmbient();
+}
+
+// Load saved settings
+const savedSfx = localStorage.getItem('bugsiege_sfx');
+const savedMusic = localStorage.getItem('bugsiege_music');
+if (savedSfx !== null) audioSettings.sfxEnabled = savedSfx === '1';
+if (savedMusic !== null) audioSettings.musicEnabled = savedMusic === '1';
+
 function getCtx() {
   if (!audioCtx) {
     audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -14,6 +38,7 @@ export function resumeAudio() {
 }
 
 function playTone(freq, duration, type = 'square', volume = 0.1) {
+  if (!audioSettings.sfxEnabled) return;
   const ctx = getCtx();
   const osc = ctx.createOscillator();
   const gain = ctx.createGain();
@@ -28,6 +53,7 @@ function playTone(freq, duration, type = 'square', volume = 0.1) {
 }
 
 function playNoise(duration, volume = 0.05) {
+  if (!audioSettings.sfxEnabled) return;
   const ctx = getCtx();
   const bufferSize = ctx.sampleRate * duration;
   const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
@@ -78,10 +104,21 @@ export const SFX = {
 // Simple ambient background
 let ambientInterval = null;
 export function startAmbient() {
+  if (!audioSettings.musicEnabled) return;
   if (ambientInterval) return;
   ambientInterval = setInterval(() => {
-    const freq = 100 + Math.random() * 50;
-    playTone(freq, 2, 'sine', 0.015);
+    if (!audioSettings.musicEnabled) return;
+    const ctx = getCtx();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = 100 + Math.random() * 50;
+    gain.gain.setValueAtTime(0.015, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 2);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 2);
   }, 3000);
 }
 

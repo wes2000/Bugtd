@@ -128,39 +128,31 @@ export class GameManager {
   _setupPaths() {
     const map = this.map;
     const halfWidth = map.gridWidth;
-    const totalWidth = halfWidth * 2 + 2;
 
-    // Troop paths must use the SAME world coordinates as the rendered paths
-    // Rendered left-side:  x = p.x + 1
-    // Rendered right-side: x = (halfWidth - p.x) + halfWidth + 2
-    // Rendered paths go from base-edge toward divider, so we reverse for troop direction
+    // Each troop follows the FULL path: own territory → cross divider → enemy territory
+    // Rendered left-side coords:  x = p.x + 1  (goes base→divider)
+    // Rendered right-side coords: x = (halfWidth - p.x) + halfWidth + 2  (goes base→divider)
 
-    // Player 0 sends troops through player 1's territory (right side)
+    // Player 0: follow left-side path (own, base→divider) then right-side path reversed (enemy, divider→base)
     this.playerPaths[0] = map.paths.map(path => {
-      // Match right-side rendering coords
-      const worldPath = path.map(p => ({
+      const ownSide = path.map(p => ({ x: p.x + 1, y: p.y }));
+      const enemySide = path.map(p => ({
         x: (halfWidth - p.x) + halfWidth + 2,
         y: p.y
       }));
-      // Reverse: troops enter from divider, walk toward P2 base
-      worldPath.reverse();
-      // Start from player 0's base
-      worldPath.unshift({ x: 0.5, y: worldPath[0].y });
-      return worldPath;
+      enemySide.reverse(); // divider → P2 base
+      return [...ownSide, ...enemySide];
     });
 
-    // Player 1 sends troops through player 0's territory (left side)
+    // Player 1: follow right-side path (own, base→divider) then left-side path reversed (enemy, divider→base)
     this.playerPaths[1] = map.paths.map(path => {
-      // Match left-side rendering coords
-      const worldPath = path.map(p => ({
-        x: p.x + 1,
+      const ownSide = path.map(p => ({
+        x: (halfWidth - p.x) + halfWidth + 2,
         y: p.y
       }));
-      // Reverse: troops enter from divider, walk toward P1 base
-      worldPath.reverse();
-      // Start from player 1's base
-      worldPath.unshift({ x: totalWidth - 0.5, y: worldPath[0].y });
-      return worldPath;
+      const enemySide = path.map(p => ({ x: p.x + 1, y: p.y }));
+      enemySide.reverse(); // divider → P1 base
+      return [...ownSide, ...enemySide];
     });
   }
 
@@ -294,6 +286,14 @@ export class GameManager {
             troopType: troop.type,
             x: troop.x, z: troop.z,
             color: troop.color,
+          });
+        },
+        // onBugFight
+        (a, b) => {
+          if (this.onEvent) this.onEvent({
+            type: 'bug_fight',
+            x: (a.x + b.x) / 2,
+            z: (a.z + b.z) / 2,
           });
         }
       );

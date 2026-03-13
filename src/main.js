@@ -7,7 +7,7 @@ import { TowerRenderer } from './rendering/TowerRenderer.js';
 import { TroopRenderer } from './rendering/TroopRenderer.js';
 import { ParticleSystem } from './rendering/ParticleSystem.js';
 import { UIManager } from './rendering/UIManager.js';
-import { SFX, resumeAudio, startAmbient, stopAmbient } from './utils/audio.js';
+import { SFX, resumeAudio, startAmbient, stopAmbient, audioSettings, setSfxEnabled, setMusicEnabled } from './utils/audio.js';
 
 // ========== INITIALIZATION ==========
 const canvas = document.getElementById('game-canvas');
@@ -133,6 +133,10 @@ game.onEvent = (evt) => {
       particles.emitBurst(evt.x, 0.5, evt.z, 0x88ccff, 5);
       break;
     }
+    case 'bug_fight': {
+      particles.emitBurst(evt.x, 0.3, evt.z, 0xff8800, 3);
+      break;
+    }
   }
 };
 
@@ -215,6 +219,14 @@ ui.onSell = (towerId) => {
 ui.onTargeting = (towerId, mode) => {
   game.towers.setTargeting(towerId, mode);
 };
+
+ui.onSettingsChange = (setting, enabled) => {
+  if (setting === 'sfx') setSfxEnabled(enabled);
+  if (setting === 'music') setMusicEnabled(enabled);
+};
+
+// Sync settings UI with saved audio state
+ui.syncSettings(audioSettings.sfxEnabled, audioSettings.musicEnabled);
 
 // ========== MOUSE INPUT ==========
 canvas.addEventListener('click', (e) => {
